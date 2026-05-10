@@ -1,0 +1,61 @@
+name: Build and Deploy to GKE
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: super-mario-devops
+  GAR_LOCATION: asia-south1
+  REPOSITORY: super-mario-repo
+  IMAGE: super-mario
+  CLUSTER_NAME: super-mario-gke
+  CLUSTER_REGION: asia-south1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker asia-south1-docker.pkg.dev
+
+      - name: Get GKE Credentials
+        run: |
+          gcloud container clusters get-credentials $CLUSTER_NAME \
+          --region $CLUSTER_REGION
+
+      - name: Build Docker Image
+        run: |
+          docker build -t $GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE:${{ github.sha }} ./app/super-mario-mimic
+
+      - name: Push Docker Image
+        run: |
+          docker push $GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE:${{ github.sha }}
+
+      - name: Update Helm Values
+        run: |
+          sed -i "s|tag:.*|tag: \"${{ github.sha }}\"|g" helm/super-mario/values.yaml
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install super-mario ./helm/super-mario \
+            --namespace super-mario \
+            --create-namespace
