@@ -34,6 +34,10 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
       - name: Configure Docker
         run: gcloud auth configure-docker asia-south1-docker.pkg.dev
 
@@ -44,7 +48,10 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t $GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE:${{ github.sha }} ./app/super-mario-mimic
+          docker build \
+            -t $GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE:${{ github.sha }} \
+            -f ./app/super-mario-mimic/Dockerfile \
+            ./app/super-mario-mimic
 
       - name: Push Docker Image
         run: |
