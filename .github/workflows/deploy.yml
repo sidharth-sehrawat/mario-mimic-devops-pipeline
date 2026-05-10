@@ -91,9 +91,11 @@ jobs:
       #  success. Without it, the job shows green even if pods are crashlooping.
       - name: Deploy with Helm
         run: |
+          # Create namespace manually so Helm doesn't own it (avoids annotation conflicts)
+          kubectl get namespace super-mario || kubectl create namespace super-mario
+
           helm upgrade --install super-mario ./helm/super-mario \
-            --namespace   super-mario \
-            --create-namespace \
+            --namespace super-mario \
             --set image.repository="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}" \
             --set image.tag="${{ github.sha }}" \
             --set image.pullPolicy=Always \
