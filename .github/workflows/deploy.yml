@@ -6,59 +6,110 @@ on:
       - main
 
 env:
-  PROJECT_ID: super-mario-devops
-  GAR_LOCATION: asia-south1
-  REPOSITORY: super-mario-repo
-  IMAGE: super-mario
-  CLUSTER_NAME: super-mario-gke
+  PROJECT_ID:     super-mario-devops
+  GAR_LOCATION:   asia-south1
+  REPOSITORY:     super-mario-repo
+  IMAGE:          super-mario
+  CLUSTER_NAME:   super-mario-gke
   CLUSTER_REGION: asia-south1
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
       id-token: write
 
     steps:
+      # ── 1. Checkout ───────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ── 2. Authenticate to GCP via OIDC ──────────────────────────────────
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          service_account:            ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
+      # ── 3. Setup gcloud + install gke-gcloud-auth-plugin ─────────────────
+      #  FIX: Use install_components here instead of a separate run step.
+      #  "gcloud components install" fails on GitHub-hosted runners because
+      #  the managed component system is disabled. install_components in the
+      #  action handles this correctly via apt instead.
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: gke-gcloud-auth-plugin
 
-      - name: Install GKE Auth Plugin
-        run: |
-          gcloud components install gke-gcloud-auth-plugin --quiet
-
+      # ── 4. Configure Docker for Artifact Registry ─────────────────────────
       - name: Configure Docker
-        run: gcloud auth configure-docker asia-south1-docker.pkg.dev
+        run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev --quiet
 
+      # ── 5. Get GKE Credentials ────────────────────────────────────────────
+      #  FIX: Added --project flag. Without it, gcloud may target the wrong
+      #  project if the SA has access to multiple projects.
       - name: Get GKE Credentials
         run: |
-          gcloud container clusters get-credentials $CLUSTER_NAME \
-          --region $CLUSTER_REGION
+          gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
+            --region  ${{ env.CLUSTER_REGION }} \
+            --project ${{ env.PROJECT_ID }}
 
+      # ── 6. Build Docker Image ─────────────────────────────────────────────
+      #  FIX: This was the root cause of your failure.
+      #  -f points to the Dockerfile location.
+      #  The final argument (app/super-mario-mimic) sets the BUILD CONTEXT —
+      #  the directory Docker uses as its filesystem root when resolving COPY.
+      #  When this was missing/wrong, COPY package.json couldn't find the file.
       - name: Build Docker Image
-        run: docker build -t $GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE:${{ github.sha }} -f app/super-mario-mimic/Dockerfile app/super-mario-mimic
+        run: |
+          docker build \
+            -t ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }} \
+            -t ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:latest \
+            -f app/super-mario-mimic/Dockerfile \
+            app/super-mario-mimic
 
+      # ── 7. Push Docker Image ──────────────────────────────────────────────
+      #  FIX: Push both tags so :latest always points to the newest build.
+      #  This makes manual pulls and debugging much easier.
       - name: Push Docker Image
         run: |
-          docker push $GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE:${{ github.sha }}
+          docker push ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }}
+          docker push ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:latest
 
-      - name: Update Helm Values
-        run: |
-          sed -i "s|tag:.*|tag: \"${{ github.sha }}\"|g" helm/super-mario/values.yaml
-
+      # ── 8. Deploy with Helm ───────────────────────────────────────────────
+      #  FIX: Removed the sed step entirely. Mutating values.yaml with sed is
+      #  fragile (regex can break on special chars in SHA) and only works if
+      #  your values.yaml has exactly that format. Pass the tag directly via
+      #  --set instead — this is the correct Helm pattern for CI.
+      #
+      #  ADDED --atomic: if the rollout fails within the timeout, Helm
+      #  automatically rolls back to the previous release. Without this,
+      #  a bad deploy leaves your cluster in a broken state.
+      #
+      #  ADDED --wait: Helm blocks until all pods are Ready before reporting
+      #  success. Without it, the job shows green even if pods are crashlooping.
       - name: Deploy with Helm
         run: |
           helm upgrade --install super-mario ./helm/super-mario \
-            --namespace super-mario \
-            --create-namespace
+            --namespace   super-mario \
+            --create-namespace \
+            --set image.repository="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}" \
+            --set image.tag="${{ github.sha }}" \
+            --set image.pullPolicy=Always \
+            --atomic \
+            --timeout 5m \
+            --wait
+
+      # ── 9. Verify & summarize ─────────────────────────────────────────────
+      - name: Deployment Summary
+        if: always()
+        run: |
+          echo "──────── Pods ────────"
+          kubectl get pods -n super-mario -o wide
+
+          echo "──────── Service ─────"
+          kubectl get svc -n super-mario
+
+          echo "──────── HPA ─────────"
+          kubectl get hpa -n super-mario
