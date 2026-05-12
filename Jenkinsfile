@@ -30,12 +30,21 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                sh 'docker build -t mario-app ./app/super-mario-mimic'
-            }
+      stage('Build Docker Image') {
+          steps {
+            sh '''
+                docker build -t asia-south1-docker.pkg.dev/jenkins-mario-devops-pipeline/mario-repo/mario-app:v1 ./app/super-mario-mimic
+                '''
+          } 
         }
 
+        stage('Push Docker Image') {
+           steps {
+              sh '''
+                    docker push asia-south1-docker.pkg.dev/jenkins-mario-devops-pipeline/mario-repo/mario-app:v1
+                  '''
+            }
+        }
         stage('Trivy Scan') {
             steps {
                 sh 'trivy image mario-app'
