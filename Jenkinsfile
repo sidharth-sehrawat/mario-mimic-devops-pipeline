@@ -10,7 +10,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                url: 'https://github.com/YOUR_USERNAME/mario-mimic-devops-pipeline.git'
+                url: 'https://github.com/sidharth-sehrawat/mario-mimic-devops-pipeline.git'
             }
         }
 
