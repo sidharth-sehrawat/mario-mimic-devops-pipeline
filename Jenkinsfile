@@ -33,7 +33,7 @@ pipeline {
       stage('Build Docker Image') {
           steps {
             sh '''
-                docker build -t asia-south1-docker.pkg.dev/super-mario-devops/mario-repo/mario-app:v1 ./app/super-mario-mimic
+                docker build -t asia-south1-docker.pkg.dev/super-mario-devops/super-mario-repo/mario-app:v1 ./app/super-mario-mimic
                 '''
           } 
         }
@@ -41,7 +41,7 @@ pipeline {
         stage('Push Docker Image') {
            steps {
               sh '''
-                   docker push  asia-south1-docker.pkg.dev/super-mario-devops/mario-repo/mario-app:v1
+                  docker push asia-south1-docker.pkg.dev/super-mario-devops/super-mario-repo/mario-app:v1
                   '''
             }
         }
