@@ -54,7 +54,7 @@ pipeline {
     steps {
         sh '''
         gcloud container clusters get-credentials super-mario-gke \
-        --zone asia-south1-a \
+        --region asia-south1 \
         --project super-mario-devops
 
         kubectl apply -f k8s/deployment.yaml
