@@ -33,7 +33,7 @@ pipeline {
       stage('Build Docker Image') {
           steps {
             sh '''
-                docker build -t asia-south1-docker.pkg.dev/jenkins-mario-devops-pipeline/mario-repo/mario-app:v1 ./app/super-mario-mimic
+                docker build -t asia-south1-docker.pkg.dev/super-mario-devops/mario-repo/mario-app:v1 ./app/super-mario-mimic
                 '''
           } 
         }
@@ -41,7 +41,7 @@ pipeline {
         stage('Push Docker Image') {
            steps {
               sh '''
-                    docker push asia-south1-docker.pkg.dev/jenkins-mario-devops-pipeline/mario-repo/mario-app:v1
+                   docker push  asia-south1-docker.pkg.dev/super-mario-devops/mario-repo/mario-app:v1
                   '''
             }
         }
@@ -53,9 +53,9 @@ pipeline {
         stage('Deploy to GKE') {
     steps {
         sh '''
-        gcloud container clusters get-credentials mario-gke-cluster \
+        gcloud container clusters get-credentials super-mario-gke \
         --zone asia-south1-a \
-        --project jenkins-mario-devops-pipeline
+        --project super-mario-devops
 
         kubectl apply -f k8s/deployment.yaml
         kubectl apply -f k8s/service.yaml

@@ -20,7 +20,7 @@ spec:
       containers:
       - name: mario-app
 
-        image: asia-south1-docker.pkg.dev/jenkins-mario-devops-pipeline/mario-repo/mario-app:v1
+        image: asia-south1-docker.pkg.dev/super-mario-devops/mario-repo/mario-app:v1
 
         ports:
         - containerPort: 8080
