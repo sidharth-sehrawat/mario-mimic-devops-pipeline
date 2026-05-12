@@ -51,17 +51,16 @@ pipeline {
             }
         }
         stage('Deploy to GKE') {
-          steps {
-            sh '''
-                gcloud container clusters get-credentials mario-gke-cluster \
-                --zone asia-south1-a \
-                --project jenkins-mario-devops-pipeline
+    steps {
+        sh '''
+        gcloud container clusters get-credentials mario-gke-cluster \
+        --zone asia-south1-a \
+        --project jenkins-mario-devops-pipeline
 
-                kubectl apply -f k8s/deployment.yaml
-                kubectl apply -f k8s/service.yaml
-                '''
-    }
-}
-
+        kubectl apply -f k8s/deployment.yaml
+        kubectl apply -f k8s/service.yaml
+        '''
+            }
+        }
     }
 }
