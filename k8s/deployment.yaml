@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: mario-app
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: mario-app
+
+  template:
+    metadata:
+      labels:
+        app: mario-app
+
+    spec:
+      containers:
+      - name: mario-app
+
+        image: asia-south1-docker.pkg.dev/jenkins-mario-devops-pipeline/mario-repo/mario-app:v1
+
+        ports:
+        - containerPort: 8080

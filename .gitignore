@@ -9,7 +9,6 @@ terraform.tfstate.backup
 
 # GCP
 google-cloud-sdk/
-*.json
 
 # Kubernetes
 kubeconfig
