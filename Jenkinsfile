@@ -24,7 +24,7 @@ pipeline {
             -Dsonar.projectKey=mario-app \
             -Dsonar.sources=. \
             -Dsonar.host.url=http://35.222.190.143:9000 \
-            -Dsonar.login=YOUR_SONAR_TOKEN
+            -Dsonar.login=squ_e7b938397c477582982f049120acf2e9001eb02c
             """
         }
     }
