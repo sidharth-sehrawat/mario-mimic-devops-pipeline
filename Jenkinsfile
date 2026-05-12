@@ -23,7 +23,7 @@ pipeline {
             ${tool 'sonar-scanner'}/bin/sonar-scanner \
             -Dsonar.projectKey=mario-app \
             -Dsonar.sources=. \
-            -Dsonar.host.url=http://35.222.190.143:9000 \
+            -Dsonar.host.url=http://34.71.59.54:9000 \
             -Dsonar.login=squ_e7b938397c477582982f049120acf2e9001eb02c
             """
         }
